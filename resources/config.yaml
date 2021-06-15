@@ -89,7 +89,7 @@ versions:              # configuration namespace for versions enforcement (libra
   python: 3.7          # the Python minor version that will be used by the application in containers and cloud instances, , also used as a based version for virtual environments created for each framework.
 
 container: &container          # parent configuration namespace for container modes.
-  force_branch: true           # set to true if image can only be built from a clean branch, with same tag as defined in `project_repository`.
+  force_branch: false           # set to true if image can only be built from a clean branch, with same tag as defined in `project_repository`.
   ignore_labels: ['stable']    # branches listed here won't appear in the container name.
   minimize_instances: true     # set to true to avoid running multiple container instances on the same machine.
   run_extra_options: ''        # additional options passed to the container exec.

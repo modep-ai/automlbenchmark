@@ -173,3 +173,122 @@ CMD ["{framework}", "test"]
         )
         with open(self._script, 'w') as file:
             file.write(docker_content)
+
+class DockerBenchmarkAPI(DockerBenchmark):
+    """DockerBenchmarkAPI
+    an extension of DockerBenchmark to run benchmarks inside docker by exposing a FLASK API.
+    """
+    def _generate_script(self, custom_commands):
+        docker_content = """FROM ubuntu:18.04
+
+ENV DEBIAN_FRONTEND noninteractive
+RUN apt-get update
+RUN apt-get -y install apt-utils dialog locales
+RUN apt-get -y install curl wget unzip git nano
+RUN apt-get -y install software-properties-common
+RUN add-apt-repository -y ppa:deadsnakes/ppa
+RUN apt-get update
+RUN apt-get -y install python{pyv} python{pyv}-venv python{pyv}-dev python3-pip
+#RUN update-alternatives --install /usr/bin/python3 python3 $(which python{pyv}) 1
+
+# aliases for the python system
+ENV SPIP python{pyv} -m pip
+ENV SPY python{pyv}
+
+# Enforce UTF-8 encoding
+ENV PYTHONUTF8 1
+ENV PYTHONIOENCODING utf-8
+# RUN locale-gen en-US.UTF-8
+ENV LANG C.UTF-8
+ENV LC_ALL C.UTF-8
+
+WORKDIR /bench
+
+# We create a virtual environment so that AutoML systems may use their preferred versions of
+# packages that we need to data pre- and postprocessing without breaking it.
+RUN $SPIP install -U pip wheel
+RUN $SPY -m venv venv
+ENV PIP /bench/venv/bin/python3 -m pip
+ENV PY /bench/venv/bin/python3 -W ignore
+#RUN $PIP install -U pip=={pipv} wheel
+RUN $PIP install -U pip wheel
+
+VOLUME /input
+VOLUME /output
+VOLUME /custom
+
+# ---------------------------------------------------------------
+# above here is the same as DockerBenchmark
+# ---------------------------------------------------------------
+
+# need this later to pip install the psycopg2 package
+RUN apt-get -y install libpq-dev
+
+RUN $PIP install -U google-cloud-storage
+
+# Add the AutoML system except files listed in .dockerignore (could also use git clone directly?)
+ADD automlbenchmark /bench/automlbenchmark
+ADD worker_app /bench/worker_app
+ADD app_utils /bench/app_utils
+
+# remove artifacts from local installations of frameworks created by `-m local`
+RUN rm -rf automlbenchmark/frameworks/*/venv
+RUN rm -rf automlbenchmark/frameworks/*/.installed
+RUN rm -rf automlbenchmark/frameworks/*/.setup_env
+
+# WARNING: do not distribute the container since it now has this key in it
+RUN mkdir -p /var/secrets
+COPY ./gcp_key.json /var/secrets/gcp_key.json
+ENV GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/gcp_key.json
+
+# install AMLB in the same order as requirements.txt
+RUN (grep -v '^\\s*#' | xargs -L 1 $PIP install --no-cache-dir) < /bench/automlbenchmark/requirements.txt
+
+# install common app_utils
+RUN $PIP install --no-cache-dir -r /bench/app_utils/requirements.txt
+RUN $PIP install --no-cache-dir /bench/app_utils/
+
+# install worker_app
+RUN $PIP install --no-cache-dir -r /bench/worker_app/requirements.txt
+RUN $PIP install --no-cache-dir /bench/worker_app/
+
+# run setup.sh script for this framework
+RUN $PY /bench/automlbenchmark/{script} {framework} -s only
+
+# Custom commands
+{custom_commands}
+
+EXPOSE 8080
+
+ENV GCP_BUCKET={GCP_BUCKET}
+ENV DB_HOST={DB_HOST}
+ENV DB_PORT={DB_PORT}
+ENV DB_USER={DB_USER}
+ENV DB_PASS={DB_PASS}
+ENV DB_DB={DB_DB}
+
+# start API server using the opened port above (8080).
+CMD ["/bench/venv/bin/python3", "/bench/worker_app/worker_app/app.py", "-d", "{DEBUG_SERVER}", "--port", "8080", "--host", "0.0.0.0"]
+
+""".format(
+    custom_commands=custom_commands.format(
+        setup=dir_of(os.path.join(self._framework_dir, "setup/"),
+                     rel_to_project_root=True),
+        pip="$PIP",
+        py="$PY"
+    ),
+    framework=self._forward_params['framework_name'],
+    pyv=rconfig().versions.python,
+    pipv=rconfig().versions.pip,
+    script=rconfig().script,
+    user=rconfig().user_dir,
+    GCP_BUCKET=os.environ.get('GCP_BUCKET', ''),
+    DEBUG_SERVER=os.environ.get('DEBUG_SERVER', '1'),
+    DB_HOST=os.environ.get('DB_HOST', 'localhost'),
+    DB_PORT=os.environ.get('DB_PORT', '5432'),
+    DB_USER=os.environ.get('DB_USER', 'postgres'),
+    DB_PASS=os.environ.get('DB_PASS', ''),
+    DB_DB=os.environ.get('DB_DB', 'mlapi'),
+)
+        with open(self._script, 'w') as file:
+            file.write(docker_content)

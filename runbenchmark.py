@@ -34,7 +34,7 @@ parser.add_argument('benchmark', type=str, nargs='?', default='test',
 parser.add_argument('constraint', type=str, nargs='?', default='test',
                     help="The constraint definition to use as defined by default in resources/constraints.yaml."
                          "\n(default: '%(default)s')")
-parser.add_argument('-m', '--mode', choices=['local', 'aws', 'docker', 'singularity'], default='local',
+parser.add_argument('-m', '--mode', choices=['local', 'aws', 'docker', 'singularity', 'docker-api'], default='local',
                     help="The mode that specifies how/where the benchmark tasks will be running."
                          "\n(default: '%(default)s')")
 parser.add_argument('-t', '--task', metavar='task_id', nargs='*', default=None,
@@ -161,6 +161,8 @@ try:
         bench = amlb.SingularityBenchmark(args.framework, args.benchmark, args.constraint)
     elif args.mode == 'aws':
         bench = amlb.AWSBenchmark(args.framework, args.benchmark, args.constraint)
+    elif args.mode == 'docker-api':
+        bench = amlb.DockerBenchmarkAPI(args.framework, args.benchmark, args.constraint)
         # bench = amlb.AWSBenchmark(args.framework, args.benchmark, args.constraint, region=args.region)
     # elif args.mode == "aws-remote":
     #     bench = amlb.AWSRemoteBenchmark(args.framework, args.benchmark, args.constraint, region=args.region)
@@ -186,7 +188,7 @@ except Exception as e:
     code = 2
 finally:
     archives = amlb.resources.config().archive
-    if archives and bench:
+    if archives and bench and args.mode != 'docker-api':
         out_dirs = bench.output_dirs
         for d in archives:
             if d in out_dirs:
