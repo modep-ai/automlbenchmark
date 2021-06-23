@@ -181,6 +181,10 @@ class DockerBenchmarkAPI(DockerBenchmark):
     def _generate_script(self, custom_commands):
         docker_content = """FROM ubuntu:18.04
 
+RUN mkdir -p /etc/supervisor/conf.d/
+COPY ./supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY ./my_redis.conf /etc/redis.conf
+
 ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update
 RUN apt-get -y install apt-utils dialog locales
@@ -221,8 +225,9 @@ VOLUME /custom
 # above here is the same as DockerBenchmark
 # ---------------------------------------------------------------
 
-# need this later to pip install the psycopg2 package
-RUN apt-get -y install libpq-dev
+# Need libpq-dev to pip install the psycopg2 package.
+# Need redis-server for celery.
+RUN apt-get -y install libpq-dev redis-server supervisor
 
 RUN $PIP install -U google-cloud-storage
 
@@ -253,7 +258,21 @@ RUN $PIP install --no-cache-dir -r /bench/worker_app/requirements.txt
 RUN $PIP install --no-cache-dir /bench/worker_app/
 
 # run setup.sh script for this framework
-RUN $PY /bench/automlbenchmark/{script} {framework} -s only
+# $PY /bench/automlbenchmark/{script} {framework} -s only
+
+RUN $PY /bench/automlbenchmark/runbenchmark.py autogluon -s only
+RUN $PY /bench/automlbenchmark/runbenchmark.py autosklearn -s only
+RUN $PY /bench/automlbenchmark/runbenchmark.py autoweka -s only
+RUN $PY /bench/automlbenchmark/runbenchmark.py flaml -s only
+RUN $PY /bench/automlbenchmark/runbenchmark.py gama -s only
+RUN $PY /bench/automlbenchmark/runbenchmark.py h2oautoml -s only
+RUN $PY /bench/automlbenchmark/runbenchmark.py hyperoptsklearn -s only
+RUN $PY /bench/automlbenchmark/runbenchmark.py mljarsupervised -s only
+RUN $PY /bench/automlbenchmark/runbenchmark.py mlnet -s only
+RUN $PY /bench/automlbenchmark/runbenchmark.py tpot -s only
+RUN $PY /bench/automlbenchmark/runbenchmark.py constantpredictor -s only
+RUN $PY /bench/automlbenchmark/runbenchmark.py randomforest -s only
+RUN $PY /bench/automlbenchmark/runbenchmark.py tunedrandomforest -s only
 
 # Custom commands
 {custom_commands}
@@ -267,9 +286,14 @@ ENV DB_USER={DB_USER}
 ENV DB_PASS={DB_PASS}
 ENV DB_DB={DB_DB}
 
-# start API server using the opened port above (8080).
-CMD ["/bench/venv/bin/python3", "/bench/worker_app/worker_app/app.py", "-d", "{DEBUG_SERVER}", "--port", "8080", "--host", "0.0.0.0"]
+# RUN redis-server &
+# RUN celery -A worker_app.celery worker -l debug &
 
+# start API server using the opened port above (8080).
+# # CMD ["/bench/venv/bin/python3", "/bench/worker_app/worker_app/app.py", "-d", "{DEBUG_SERVER}", "--port", "8080", "--host", "0.0.0.0"]
+
+# uses 0.0.0.0/8080 for the web server in supervisord.conf
+CMD ["supervisord"]
 """.format(
     custom_commands=custom_commands.format(
         setup=dir_of(os.path.join(self._framework_dir, "setup/"),

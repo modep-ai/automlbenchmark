@@ -56,7 +56,7 @@ autosklearn2:
     _save_artifacts: ['models']
 
 AutoWEKA:
-  version: 'stable'
+  version: '2.6'
   description: |
     Auto-WEKA considers the problem of simultaneously selecting a learning algorithm and setting its hyperparameters, going beyond previous methods that address these issues in isolation.
     Auto-WEKA does this using a fully automated approach, leveraging recent innovations in Bayesian optimization.
@@ -117,7 +117,7 @@ lightautoml:
     _save_artifacts: ['models']
 
 mljarsupervised:
-  version: 'stable'
+  version: '0.10.4'
   description: |
     AutoML mljar-supervised abstracts the common way to preprocess the data, construct the machine learning models, and perform hyper-parameters tuning to find the best model.
   project: https://supervised.mljar.com/
@@ -139,7 +139,7 @@ MLNet:
     _save_artifacts: ['models']
 
 MLPlan:
-  version: 'stable'
+  version: '0.2.3'
   abstract: true
   description: |
     ML-Plan is an approach to AutoML based on hierarchical task networks (HTNs).
@@ -161,7 +161,7 @@ mlr3automl:
   project: https://github.com/a-hanf/mlr3automl
 
 oboe:
-  version: 'latest'
+  version: 'stable'
   description: |
     oboe is an AutoML model selection system to select estimators or pipelines for a dataset.
   project: https://github.com/udellgroup/oboe
