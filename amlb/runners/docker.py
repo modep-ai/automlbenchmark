@@ -289,9 +289,6 @@ ENV DB_DB={DB_DB}
 # RUN redis-server &
 # RUN celery -A worker_app.celery worker -l debug &
 
-# start API server using the opened port above (8080).
-# # CMD ["/bench/venv/bin/python3", "/bench/worker_app/worker_app/app.py", "-d", "{DEBUG_SERVER}", "--port", "8080", "--host", "0.0.0.0"]
-
 # uses 0.0.0.0/8080 for the web server in supervisord.conf
 CMD ["supervisord"]
 """.format(

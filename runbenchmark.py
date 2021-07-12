@@ -188,7 +188,7 @@ except Exception as e:
     code = 2
 finally:
     archives = amlb.resources.config().archive
-    if archives and bench and args.mode != 'docker-api':
+    if archives and bench and False:
         out_dirs = bench.output_dirs
         for d in archives:
             if d in out_dirs:

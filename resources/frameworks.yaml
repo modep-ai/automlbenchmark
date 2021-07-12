@@ -26,14 +26,15 @@ AutoGluon:
   project: https://auto.gluon.ai
   refs: [https://arxiv.org/abs/2003.06505]
   params:
-    _save_artifacts: ['leaderboard', 'models', 'info']
+    # _save_artifacts: ['leaderboard', 'models', 'info']
+    _save_artifacts: ['leaderboard']
 
 AutoGluon_bestquality:
   extends: AutoGluon
   description: |
     AutoGluon with 'best_quality' preset provides the most accurate overall predictor.
   params:
-    _save_artifacts: ['leaderboard', 'models', 'info']
+    _save_artifacts: ['leaderboard']
     presets: best_quality
 
 autosklearn:
