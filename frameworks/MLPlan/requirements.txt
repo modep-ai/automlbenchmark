@@ -1,4 +1,4 @@
-setuptools
+setuptools==57.4.0
 
 ruamel.yaml>=0.15,<1.0
 numpy>=1.15,<2.0
