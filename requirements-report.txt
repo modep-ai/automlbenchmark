@@ -1,6 +1,6 @@
 numpy
 pandas
 matplotlib
-seaborn
+seaborn==0.11.1
 openml
 tabulate
