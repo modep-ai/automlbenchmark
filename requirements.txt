@@ -28,7 +28,7 @@ liac-arff==2.5.0
     # via
     #   -r requirements.in
     #   openml
-minio==7.0.3
+minio==7.1.0
     # via openml
 numexpr==2.7.3
     # via tables
