@@ -50,7 +50,7 @@ pandas==1.2.4
     #   openml
 psutil==5.8.0
     # via -r requirements.in
-pyarrow==4.0.0
+pyarrow==5.0.0
     # via
     #   -r requirements.in
     #   openml
