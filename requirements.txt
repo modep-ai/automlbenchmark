@@ -54,7 +54,7 @@ pyarrow==4.0.0
     # via
     #   -r requirements.in
     #   openml
-python-dateutil==2.8.1
+python-dateutil==2.8.2
     # via
     #   botocore
     #   openml
