@@ -61,7 +61,7 @@ python-dateutil==2.8.1
     #   pandas
 pytz==2021.1
     # via pandas
-requests==2.25.1
+requests==2.26.0
     # via openml
 ruamel.yaml.clib==0.2.2
     # via ruamel.yaml
