@@ -1,2 +1,2 @@
 packaging
-pyarrow
+pyarrow==5.0.0
