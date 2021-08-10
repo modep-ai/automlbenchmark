@@ -1,5 +1,5 @@
 requests>=2.10
-tabulate
+tabulate==0.8.9
 future
 colorama>=0.3.8
 packaging
