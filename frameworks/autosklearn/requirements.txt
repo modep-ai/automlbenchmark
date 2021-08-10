@@ -1,2 +1,2 @@
 packaging
-openml
+openml==0.12.2
