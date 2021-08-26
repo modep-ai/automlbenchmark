@@ -65,7 +65,7 @@ requests==2.25.1
     # via openml
 ruamel.yaml.clib==0.2.2
     # via ruamel.yaml
-ruamel.yaml==0.17.4
+ruamel.yaml==0.17.14
     # via -r requirements.in
 s3transfer==0.4.2
     # via boto3
