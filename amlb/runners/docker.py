@@ -286,6 +286,7 @@ ENV DB_USER={DB_USER}
 ENV DB_PASS={DB_PASS}
 ENV DB_DB={DB_DB}
 
+## supervisord will keep redis and celery running
 # RUN redis-server &
 # RUN celery -A worker_app.celery worker -l debug &
 
