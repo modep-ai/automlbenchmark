@@ -81,6 +81,8 @@ def call_run(run_fn):
                                   dict(interrupt='process', sig=signal.SIGKILL)
                               ],
                               wait_retry_secs=10):
+
+            
             result = run_fn(ds, config)
             res = dict(result)
             for name in ['predictions', 'truth', 'probabilities']:
@@ -88,6 +90,19 @@ def call_run(run_fn):
                 if arr is not None:
                     path = os.path.join(config.result_dir, '.'.join([name, 'data']))
                     res[name] = serialize_data(arr, path)
+
+
+        # print('--> run_fn, no timeout')
+        # result = run_fn(ds, config)
+        # res = dict(result)
+        # for name in ['predictions', 'truth', 'probabilities']:
+        #     arr = result[name]
+        #     print('--> arr', arr)
+        #     if arr is not None:
+        #         path = os.path.join(config.result_dir, '.'.join([name, 'data']))
+        #         print('--> serialize_data', path)
+        #         res[name] = serialize_data(arr, path)
+                
     except BaseException as e:
         log.exception(e)
         res = dict(

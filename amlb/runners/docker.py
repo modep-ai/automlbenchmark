@@ -181,10 +181,6 @@ class DockerBenchmarkAPI(DockerBenchmark):
     def _generate_script(self, custom_commands):
         docker_content = """FROM ubuntu:18.04
 
-RUN mkdir -p /etc/supervisor/conf.d/
-COPY ./supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY ./my_redis.conf /etc/redis.conf
-
 ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update
 RUN apt-get -y install apt-utils dialog locales
@@ -225,6 +221,11 @@ VOLUME /custom
 # above here is the same as DockerBenchmark
 # ---------------------------------------------------------------
 
+# setup supervisord
+RUN mkdir -p /etc/supervisor/conf.d/
+COPY ./supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY ./my_redis.conf /etc/redis.conf
+
 # Need libpq-dev to pip install the psycopg2 package.
 # Need redis-server for celery.
 RUN apt-get -y install libpq-dev redis-server supervisor
@@ -257,9 +258,13 @@ RUN $PIP install --no-cache-dir /bench/app_utils/
 RUN $PIP install --no-cache-dir -r /bench/worker_app/requirements.txt
 RUN $PIP install --no-cache-dir /bench/worker_app/
 
-# run setup.sh script for this framework
-# $PY /bench/automlbenchmark/{script} {framework} -s only
+# run setup for *this* framework
+# RUN $PY /bench/automlbenchmark/{script} {framework} -s only
 
+# run setup for a single test framework
+# RUN $PY /bench/automlbenchmark/runbenchmark.py constantpredictor -s only
+
+## run setup for all frameworks that we want to use
 RUN $PY /bench/automlbenchmark/runbenchmark.py autogluon -s only
 RUN $PY /bench/automlbenchmark/runbenchmark.py autosklearn -s only
 RUN $PY /bench/automlbenchmark/runbenchmark.py autoweka -s only

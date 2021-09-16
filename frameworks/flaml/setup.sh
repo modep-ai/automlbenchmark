@@ -22,3 +22,6 @@ else
 fi
 
 PY -c "from flaml import __version__; print(__version__)" >> "${HERE}/.installed"
+
+# JDG - downgrade pandas to get around `new_block` error
+PIP install "pandas<=1.2.0"

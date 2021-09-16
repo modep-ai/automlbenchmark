@@ -24,6 +24,7 @@ test:
 
 8h8c:
   folds: 10
+
   max_runtime_seconds: 28800
   cores: 8
   min_vol_size_mb: 131072

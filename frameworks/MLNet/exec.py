@@ -75,7 +75,7 @@ def run(dataset: Dataset, config: TaskConfig):
             models_count = len(mb_config['RunHistory']['Trials'])
             # predict
             predict_cmd = (f"{mlnet} predict --task-type {config.type}"
-                           f" --model {model_path} --dataset {test_dataset_path} > {output_prediction_path}")
+                           f" --model {model_path} --dataset {test_dataset_path} --label-col {dataset.target.name} > {output_prediction_path}")
             with Timer() as prediction:
                 run_cmd(predict_cmd)
             if config.type == 'classification':

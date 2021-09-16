@@ -105,6 +105,7 @@ def run(dataset, config):
                    # else contextlib.nullcontext  # Py 3.7+ only
                    else contextlib.contextmanager(lambda: (_ for _ in (0,)))()
                    )
+
         with Timer() as training:
             with monitor:
                 aml.train(y=dataset.target.index, training_frame=train)
