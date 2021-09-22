@@ -32,7 +32,7 @@ AutoGluon:
 AutoGluon_bestquality:
   extends: AutoGluon
   description: |
-    AutoGluon with 'best_quality' preset provides the most accurate overall predictor.
+    AutoGluon with 'best_quality' preset provides the most accurate overall predictor.    
   params:
     _save_artifacts: ['leaderboard']
     presets: best_quality
@@ -42,7 +42,7 @@ autosklearn:
   description: |
     auto-sklearn frees a machine learning user from algorithm selection and hyperparameter tuning.
     It leverages recent advantages in Bayesian optimization, meta-learning and ensemble construction.
-  project: https://automl.github.io/auto-sklearn/
+  project: https://www.automl.org/auto-sklearn
   refs: [http://papers.nips.cc/paper/5872-efficient-and-robust-automated-machine-learning.pdf]
 #  params:
 #    _save_artifacts: ['models', 'debug_as_files']
@@ -52,6 +52,11 @@ autosklearn:
 
 autosklearn2:
   extends: autosklearn
+  description: |
+    Improved version of the original auto-sklearn that incorporates new model selection strategies,
+    portfolio building, and automated policy selection.
+  project: https://www.automl.org/auto-sklearn-2-0-the-next-generation
+  refs: [https://arxiv.org/abs/2007.04074]
   params:
     _askl2: true
     _save_artifacts: ['models']
@@ -140,7 +145,8 @@ MLNet:
   # version: '16.1.1'
   version: '16.7.5'
   description: |
-    MLNET.CLI is a automated machine learning tool implemented by ml.net.
+    MLNET.CLI is a automated machine learning tool by Microsoft implemented by ml.net.
+  project: https://dotnet.microsoft.com/apps/machinelearning-ai/ml-dotnet
   params:
     _save_artifacts: ['models']
 
