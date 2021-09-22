@@ -89,6 +89,8 @@ def run_in_venv(caller_file, script_file: str, *args,
     script_path = os.path.join(here, script_file)
     cmd = f"{python_exec} {script_path}"
 
+    log.debug(f"run_in_env caller.py cmd: {cmd}")
+
     with TemporaryDirectory() as tmpdir:
 
         ds = _make_input_dataset(input_data, dataset, tmpdir)

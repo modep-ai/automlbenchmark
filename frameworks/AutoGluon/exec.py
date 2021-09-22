@@ -50,24 +50,37 @@ def run(dataset, config):
     label = dataset.target.name
     problem_type = dataset.problem_type
 
-    models_dir = tempfile.mkdtemp() + os.sep  # passed to AG
+    if config.task_type == 'train':
+        models_dir = tempfile.mkdtemp() + os.sep  # passed to AG
 
-    with Timer() as training:
-        predictor = TabularPredictor(
-            label=label,
-            eval_metric=perf_metric.name,
-            path=models_dir,
-            problem_type=problem_type,
-        ).fit(
-            train_data=train,
-            time_limit=config.max_runtime_seconds,
-            **training_params
-        )
+        with Timer() as training:
+            predictor = TabularPredictor(
+                label=label,
+                eval_metric=perf_metric.name,
+                path=models_dir,
+                problem_type=problem_type,
+            ).fit(
+                train_data=train,
+                time_limit=config.max_runtime_seconds,
+                **training_params
+            )
+
+        training_duration = training.duration
+
+    elif config.task_type == 'predict':
+        log.info(f'Task type: {config.task_type}, model_path: {config.model_path}')
+        models_dir = config.model_path
+        predictor = TabularPredictor.load(models_dir)
+        log.info('Predictor loaded')
+        training_duration = 0.0
+    else:
+        raise ValueError(f"Unknown task_type: {config.task_type}")
 
     del train
 
     if is_classification:
         with Timer() as predict:
+            log.info('predict_prob')
             probabilities = predictor.predict_proba(test, as_multiclass=True)
         predictions = probabilities.idxmax(axis=1).to_numpy()
     else:
@@ -84,6 +97,7 @@ def run(dataset, config):
     if _leaderboard_test:
         leaderboard_kwargs['data'] = test
 
+    log.info(f'getting leaderboard: {leaderboard_kwargs}')
     leaderboard = predictor.leaderboard(**leaderboard_kwargs)
     with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.width', 1000):
         log.info(leaderboard)
@@ -95,7 +109,9 @@ def run(dataset, config):
         num_models_ensemble = 1
 
     save_artifacts(predictor, leaderboard, config)
-    shutil.rmtree(predictor.path, ignore_errors=True)
+
+    ## don't this just yet b/c we need to upload it
+    # shutil.rmtree(predictor.path, ignore_errors=True)
 
     return result(output_file=config.output_predictions_file,
                   predictions=predictions,
@@ -104,8 +120,9 @@ def run(dataset, config):
                   target_is_encoded=False,
                   models_count=num_models_trained,
                   models_ensemble_count=num_models_ensemble,
-                  training_duration=training.duration,
-                  predict_duration=predict.duration)
+                  training_duration=training_duration,
+                  predict_duration=predict.duration,
+                  model_path=predictor.path)
 
 
 def save_artifacts(predictor, leaderboard, config):

@@ -37,6 +37,8 @@
 - name: iris
   openml_task_id: 59
   description: "multiclass test dataset"
+  # task_type: "train"
+  # model_path: "nill"
 
 - name: cholesterol
   openml_task_id: 2295

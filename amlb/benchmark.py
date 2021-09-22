@@ -341,7 +341,8 @@ class TaskConfig:
 
     def __init__(self, name, fold, metrics, seed,
                  max_runtime_seconds, cores, max_mem_size_mb, min_vol_size_mb,
-                 input_dir, output_dir):
+                 input_dir, output_dir,
+                 task_type, model_path):
         self.framework = None
         self.framework_params = None
         self.framework_version = None
@@ -358,6 +359,8 @@ class TaskConfig:
         self.output_dir = output_dir
         self.output_predictions_file = os.path.join(output_dir, "predictions.csv")
         self.ext = ns()  # used if frameworks require extra config points
+        self.task_type = task_type
+        self.model_path = model_path
 
     def __setattr__(self, name, value):
         if name == 'metrics':
@@ -434,6 +437,8 @@ class BenchmarkTask:
             min_vol_size_mb=task_def.min_vol_size_mb,
             input_dir=rconfig().input_dir,
             output_dir=benchmark.output_dirs.session,
+            task_type=task_def.task_type if 'task_type' in task_def else 'train',
+            model_path=task_def.model_path if 'model_path' in task_def else '',
         )
         # allowing to override some task parameters through command line, e.g.: -Xt.max_runtime_seconds=60
         if rconfig()['t'] is not None:
