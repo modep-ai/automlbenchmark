@@ -4,6 +4,7 @@ import os
 import psutil
 import re
 import shutil
+import tempfile
 
 from packaging import version
 import  pandas as pd
@@ -93,11 +94,6 @@ def run(dataset, config):
         log.debug("Running H2O AutoML with a maximum time of %ss on %s core(s), optimizing %s.",
                   config.max_runtime_seconds, config.cores, sort_metric)
 
-        aml = H2OAutoML(max_runtime_secs=config.max_runtime_seconds,
-                        sort_metric=sort_metric,
-                        seed=config.seed,
-                        **training_params)
-
         monitor = (BackendMemoryMonitoring(interval_seconds=config.ext.monitoring.interval_seconds,
                                            check_on_exit=True,
                                            verbosity=config.ext.monitoring.verbosity)
@@ -106,18 +102,49 @@ def run(dataset, config):
                    else contextlib.contextmanager(lambda: (_ for _ in (0,)))()
                    )
 
-        with Timer() as training:
-            with monitor:
-                aml.train(y=dataset.target.index, training_frame=train)
+        if config.task_type == 'train':
+            aml = H2OAutoML(max_runtime_secs=config.max_runtime_seconds,
+                            sort_metric=sort_metric,
+                            seed=config.seed,
+                            **training_params)
 
-        if not aml.leader:
-            raise FrameworkError("H2O could not produce any model in the requested time.")
+            with Timer() as training:
+                with monitor:
+                    aml.train(y=dataset.target.index, training_frame=train)
+            training_duration = training.duration
+
+            if not aml.leader:
+                raise FrameworkError("H2O could not produce any model in the requested time.")
+            models_count = len(aml.leaderboard)
+
+            model_path = tempfile.mkdtemp()
+            try:
+                log.info('Saving model to %s', model_path)
+                h2o.save_model(model=aml.leader, path=model_path, force=True)
+            except:
+                log.exception('Error saving model to %s', model_path)
+                model_path = None
+
+        elif config.task_type == 'predict':
+            # should only be one file in the folder for the leader model
+            config.model_path = os.path.join(config.model_path, os.listdir(config.model_path)[0])
+            log.info('Loading model from %s', config.model_path)
+            aml = h2o.load_model(config.model_path)
+            training_duration = 0.0
+            model_path = None
+            models_count = 1
+
+        else:
+            raise ValueError(f"Unknown task_type: {config.task_type}")
 
         with Timer() as predict:
             preds = aml.predict(test)
 
         preds = extract_preds(preds, test, dataset=dataset)
-        save_artifacts(aml, dataset=dataset, config=config)
+
+        if config.task_type == 'train':
+            # aml won't be an H2OAutoML object unless this is train mode
+            save_artifacts(aml, dataset=dataset, config=config)
 
         return result(
             output_file=config.output_predictions_file,
@@ -125,9 +152,10 @@ def run(dataset, config):
             truth=preds.truth,
             probabilities=preds.probabilities,
             probabilities_labels=preds.probabilities_labels,
-            models_count=len(aml.leaderboard),
-            training_duration=training.duration,
-            predict_duration=predict.duration
+            models_count=models_count,
+            training_duration=training_duration,
+            predict_duration=predict.duration,
+            model_path=model_path,
         )
 
     finally:

@@ -52,8 +52,7 @@ class ContainerBenchmark(Benchmark):
         self._custom_image_name = rconfig().container.image
         self.minimize_instances = rconfig().container.minimize_instances
         self.container_name = None
-        # self.force_branch = rconfig().container.force_branch
-        self.force_branch = False
+        self.force_branch = rconfig().container.force_branch
         self.custom_commands = ""
         self.image = None
 

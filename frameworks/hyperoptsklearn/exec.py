@@ -4,6 +4,7 @@ import math
 import os
 import signal
 import tempfile as tmp
+import pickle
 
 os.environ['JOBLIB_TEMP_FOLDER'] = tmp.gettempdir()
 os.environ['OMP_NUM_THREADS'] = '1'
@@ -61,23 +62,50 @@ def run(dataset, config):
         classifier = None
         regressor = any_regressor('rgr')
 
-    estimator = HyperoptEstimator(classifier=classifier,
-                                  regressor=regressor,
-                                  loss_fn=loss_fn,
-                                  continuous_loss_fn=continuous_loss_fn,
-                                  trial_timeout=config.max_runtime_seconds,
-                                  seed=config.seed,
-                                  **training_params)
+    if config.task_type == 'train':
+        estimator = HyperoptEstimator(classifier=classifier,
+                                      regressor=regressor,
+                                      loss_fn=loss_fn,
+                                      continuous_loss_fn=continuous_loss_fn,
+                                      trial_timeout=config.max_runtime_seconds,
+                                      seed=config.seed,
+                                      # max_evals=2,
+                                      **training_params)
 
-    with InterruptTimeout(config.max_runtime_seconds,
-                          interruptions=[
-                              dict(),  # default interruption
-                              dict(sig=signal.SIGKILL)
-                          ],
-                          wait_retry_secs=math.ceil(config.max_runtime_seconds/60),
-                          before_interrupt=ft.partial(kill_proc_tree, timeout=5, include_parent=False)):
-        with Timer() as training:
-            estimator.fit(X_train, y_train)
+        with InterruptTimeout(config.max_runtime_seconds,
+                              interruptions=[
+                                  dict(),  # default interruption
+                                  dict(sig=signal.SIGKILL)
+                              ],
+                              wait_retry_secs=math.ceil(config.max_runtime_seconds/60),
+                              before_interrupt=ft.partial(kill_proc_tree, timeout=5, include_parent=False)):
+            with Timer() as training:
+                estimator.fit(X_train, y_train)
+
+        # with Timer() as training:
+        #     estimator.fit(X_train, y_train)
+
+        training_duration = training.duration
+
+        # save model
+        model_path = tmp.mkdtemp()
+        try:
+            log.info('Saving model to %s', model_path)
+            with open(os.path.join(model_path, 'model.pkl'), 'wb') as f:
+                pickle.dump(estimator, f)
+        except:
+            log.exception('Error saving model to %s', model_path)
+            model_path = None
+
+    elif config.task_type == 'predict':
+        log.info('Loading model from %s', config.model_path)
+        with open(os.path.join(config.model_path, 'model.pkl'), 'rb') as f:
+            estimator = pickle.load(f)
+        training_duration = 0.0
+        model_path = None
+
+    else:
+        raise ValueError(f"Unknown task_type: {config.task_type}")
 
     log.info('Predicting on the test set.')
     X_test = dataset.test.X
@@ -96,8 +124,9 @@ def run(dataset, config):
                   probabilities=probabilities,
                   target_is_encoded=is_classification,
                   models_count=len(estimator.trials),
-                  training_duration=training.duration,
-                  predict_duration=predict.duration)
+                  training_duration=training_duration,
+                  predict_duration=predict.duration,
+                  model_path=model_path)
 
 
 if __name__ == '__main__':

@@ -1,4 +1,7 @@
 import logging
+import os
+import tempfile
+import pickle
 
 from sklearn.dummy import DummyClassifier, DummyRegressor
 
@@ -22,8 +25,31 @@ def run(dataset: Dataset, config: TaskConfig):
     X_test = dataset.test.X_enc if encode else dataset.test.X
     y_test = dataset.test.y_enc if encode else dataset.test.y
 
-    with Timer() as training:
-        predictor.fit(X_train, y_train)
+    if config.task_type == 'train':
+        with Timer() as training:
+            predictor.fit(X_train, y_train)
+        training_duration = training.duration
+
+        # save model
+        model_path = tempfile.mkdtemp()
+        try:
+            log.info('Saving model to %s', model_path)
+            with open(os.path.join(model_path, 'model.pkl'), 'wb') as f:
+                pickle.dump(predictor, f)
+        except:
+            log.exception('Error saving model to %s', model_path)
+            model_path = None
+
+    elif config.task_type == 'predict':
+        log.info('Loading model from %s', config.model_path)
+        with open(os.path.join(config.model_path, 'model.pkl'), 'rb') as f:
+            predictor = pickle.load(f)
+        training_duration = 0.0
+        model_path = None
+
+    else:
+        raise ValueError(f"Unknown task_type: {config.task_type}")
+
     with Timer() as predict:
         predictions = predictor.predict(X_test)
     probabilities = predictor.predict_proba(X_test) if is_classification else None
@@ -37,6 +63,7 @@ def run(dataset: Dataset, config: TaskConfig):
 
     return dict(
         models_count=1,
-        training_duration=training.duration,
-        predict_duration=predict.duration
+        training_duration=training_duration,
+        predict_duration=predict.duration,
+        model_path=model_path,
     )

@@ -65,7 +65,7 @@ class Resources:
         )
 
     @lazy_property
-    def git_info(self):
+    def git_info_orig(self):
         def git(cmd, defval=None):
             try:
                 return run_cmd(f"git {cmd}", _log_level_=logging.DEBUG)[0].strip()
@@ -91,6 +91,16 @@ class Resources:
             commit=commit,
             tags=tags,
             status=status
+        )
+
+    @lazy_property
+    def git_info(self):
+        return Namespace(
+            repo='automlbenchmark',
+            branch='master',
+            commit='NA',
+            tags=[],
+            status='NA',
         )
 
     @lazy_property

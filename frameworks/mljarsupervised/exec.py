@@ -44,17 +44,40 @@ def run(dataset, config):
     X_train, y_train = dataset.train.X, dataset.train.y.squeeze()
     X_test, y_test = dataset.test.X, dataset.test.y.squeeze()
 
-    automl = AutoML(
-        results_path=results_path,
-        total_time_limit=config.max_runtime_seconds,
-        random_state=config.seed,
-        ml_task=ml_task,
-        eval_metric=eval_metric,
-        **training_params
-    )
+    if config.task_type == 'train':
+        log.info('Saving model to %s', results_path)
 
-    with Timer() as training:
-        automl.fit(X_train, y_train)
+        automl = AutoML(
+            results_path=results_path,
+            total_time_limit=config.max_runtime_seconds,
+            random_state=config.seed,
+            ml_task=ml_task,
+            eval_metric=eval_metric,
+            **training_params
+        )
+
+        with Timer() as training:
+            automl.fit(X_train, y_train)
+
+        training_duration = training.duration
+        model_path = results_path
+
+    elif config.task_type == 'predict':
+        log.info('Loading model from %s', config.model_path)
+
+        automl = AutoML(
+            results_path=config.model_path,
+            total_time_limit=config.max_runtime_seconds,
+            random_state=config.seed,
+            ml_task=ml_task,
+            eval_metric=eval_metric,
+            **training_params
+        )
+        training_duration = 0.0
+        model_path = None
+
+    else:
+        raise ValueError(f"Unknown task_type: {config.task_type}")
 
     with Timer() as predict:
         preds = automl.predict_all(X_test)
@@ -67,9 +90,10 @@ def run(dataset, config):
     else:
         predictions = preds["prediction"].values
 
+    # delete this later after results are uploaded
     # clean the results
-    if not config.framework_params.get("_save_artifacts", False):
-        shutil.rmtree(results_path, ignore_errors=True)
+    # if not config.framework_params.get("_save_artifacts", False):
+    #     shutil.rmtree(results_path, ignore_errors=True)
 
     return result(
         output_file=config.output_predictions_file,
@@ -77,8 +101,9 @@ def run(dataset, config):
         truth=y_test,
         probabilities=probabilities,
         models_count=len(automl._models),
-        training_duration=training.duration,
-        predict_duration=predict.duration
+        training_duration=training_duration,
+        predict_duration=predict.duration,
+        model_path=model_path,
     )
 
 

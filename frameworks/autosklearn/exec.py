@@ -4,6 +4,7 @@ import os
 import shutil
 import tempfile as tmp
 import warnings
+import pickle
 
 os.environ['JOBLIB_TEMP_FOLDER'] = tmp.gettempdir()
 os.environ['OMP_NUM_THREADS'] = '1'
@@ -126,9 +127,31 @@ def run(dataset, config):
     log.info("%s additional constructor arguments: %s", askl_string, training_params)
     log.info("%s fit() arguments: %s", askl_string, fit_extra_params)
 
-    auto_sklearn = estimator(**constr_params, **training_params)
-    with Timer() as training:
-        auto_sklearn.fit(X_train, y_train, feat_type=predictors_type, **fit_extra_params)
+    if config.task_type == 'train':
+        auto_sklearn = estimator(**constr_params, **training_params)
+        with Timer() as training:
+            auto_sklearn.fit(X_train, y_train, feat_type=predictors_type, **fit_extra_params)
+        training_duration = training.duration
+
+        # save model
+        model_path = tmp.mkdtemp()
+        try:
+            log.info('Saving model to %s', model_path)
+            with open(os.path.join(model_path, 'model.pkl'), 'wb') as f:
+                pickle.dump(auto_sklearn, f)
+        except:
+            log.exception('Error saving model to %s', model_path)
+            model_path = None
+
+    elif config.task_type == 'predict':
+        log.info('Loading model from %s', config.model_path)
+        with open(os.path.join(config.model_path, 'model.pkl'), 'rb') as f:
+            auto_sklearn = pickle.load(f)
+        training_duration = 0.0
+        model_path = None
+
+    else:
+        raise ValueError(f"Unknown task_type: {config.task_type}")
 
     # Convert output to strings for classification
     log.info("Predicting on the test set.")
@@ -146,8 +169,9 @@ def run(dataset, config):
                   probabilities=probabilities,
                   target_is_encoded=is_classification,
                   models_count=len(auto_sklearn.get_models_with_weights()),
-                  training_duration=training.duration,
-                  predict_duration=predict.duration)
+                  training_duration=training_duration,
+                  predict_duration=predict.duration,
+                  model_path=model_path)
 
 
 def save_artifacts(estimator, config):

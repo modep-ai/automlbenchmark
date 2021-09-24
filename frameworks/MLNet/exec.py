@@ -40,7 +40,10 @@ def run(dataset: Dataset, config: TaskConfig):
     MODELBUILDER_AUTOML = config.framework_params.get('automl_type', 'NNI')
     os.environ['MODELBUILDER_AUTOML'] = MODELBUILDER_AUTOML
 
-    artifacts = config.framework_params.get('_save_artifacts', [])
+    # artifacts = config.framework_params.get('_save_artifacts', [])
+    # force output_dir and log_dir to be tmp_output_folder
+    artifacts = []
+
     tmpdir = tempfile.mkdtemp()
     tmp_output_folder = os.path.join(tmpdir, str(config.fold))
     output_dir = output_subdir('models', config=config) if 'models' in artifacts else tmp_output_folder
@@ -55,63 +58,82 @@ def run(dataset: Dataset, config: TaskConfig):
         log.info(f'train dataset: {train_dataset_path}')
         log.info(f'test dataset: {test_dataset_path}')
 
-        cmd = (f"{mlnet} {sub_command}"
-               f" --dataset {train_dataset_path} --test-dataset {test_dataset_path} --train-time {train_time_in_seconds}"
-               f" --label-col {label} --output {os.path.dirname(output_dir)} --name {config.fold}"
-               f" --verbosity q --log-file-path {log_path}")
+        if config.task_type == 'train':
 
-        with Timer() as training:
-            run_cmd(cmd)
+            cmd = (f"{mlnet} {sub_command}"
+                   f" --dataset {train_dataset_path} --test-dataset {test_dataset_path} --train-time {train_time_in_seconds}"
+                   f" --label-col {label} --output {os.path.dirname(output_dir)} --name {config.fold}"
+                   f" --verbosity q --log-file-path {log_path}")
 
-        train_result_json = os.path.join(output_dir, '{}.mbconfig'.format(config.fold))
-        if not os.path.exists(train_result_json):
-            raise NoResultError("MLNet failed producing any prediction.")
+            with Timer() as training:
+                run_cmd(cmd)
 
-        with open(train_result_json, 'r') as f:
-            json_str = f.read()
+            train_result_json = os.path.join(output_dir, '{}.mbconfig'.format(config.fold))
+            if not os.path.exists(train_result_json):
+                raise NoResultError("MLNet failed producing any prediction.")
+
+            training_duration = training.duration
+
+            with open(train_result_json, 'r') as f:
+                json_str = f.read()
             mb_config = json.loads(json_str)
             model_path = os.path.join(output_dir, f"{config.fold}.zip")
             output_prediction_path = os.path.join(log_dir, "prediction.txt")  # keeping this in log dir as it contains useful error when prediction fails
             models_count = len(mb_config['RunHistory']['Trials'])
-            # predict
-            predict_cmd = (f"{mlnet} predict --task-type {config.type}"
-                           f" --model {model_path} --dataset {test_dataset_path} --label-col {dataset.target.name} > {output_prediction_path}")
-            with Timer() as prediction:
-                run_cmd(predict_cmd)
-            if config.type == 'classification':
-                prediction_df = pd.read_csv(output_prediction_path, dtype={'PredictedLabel': 'object'})
 
-                save_predictions(
-                    dataset=dataset,
-                    output_file=config.output_predictions_file,
-                    predictions=prediction_df['PredictedLabel'].values,
-                    truth=dataset.test.y,
-                    probabilities=prediction_df.values[:,:-1],
-                    probabilities_labels=list(prediction_df.columns.values[:-1]),
-                )
+            # upload this
+            assert output_dir == log_dir
+            model_path_out = tmp_output_folder
 
-            if config.type == 'regression':
-                prediction_df = pd.read_csv(output_prediction_path)
-                save_predictions(
-                    dataset=dataset,
-                    output_file=config.output_predictions_file,
-                    predictions=prediction_df['Score'].values,
-                    truth=dataset.test.y,
-                )
+        elif config.task_type == 'predict':
+            training_duration = 0.0
+            model_path = os.path.join(config.model_path, f"{config.fold}.zip")
+            output_prediction_path = os.path.join(config.model_path, "prediction.txt")  # keeping this in log dir as it contains useful error when prediction fails
+            model_path_out = None
+            models_count = 0
 
-            return dict(
-                    models_count=models_count,
-                    training_duration=training.duration,
-                    predict_duration=prediction.duration,
-                )
+        # predict
+        predict_cmd = (f"{mlnet} predict --task-type {config.type}"
+                       f" --model {model_path} --dataset {test_dataset_path} --label-col {dataset.target.name} > {output_prediction_path}")
+        with Timer() as prediction:
+            run_cmd(predict_cmd)
+        if config.type == 'classification':
+            prediction_df = pd.read_csv(output_prediction_path, dtype={'PredictedLabel': 'object'})
+
+            save_predictions(
+                dataset=dataset,
+                output_file=config.output_predictions_file,
+                predictions=prediction_df['PredictedLabel'].values,
+                truth=dataset.test.y,
+                probabilities=prediction_df.values[:,:-1],
+                probabilities_labels=list(prediction_df.columns.values[:-1]),
+            )
+
+        if config.type == 'regression':
+            prediction_df = pd.read_csv(output_prediction_path)
+            save_predictions(
+                dataset=dataset,
+                output_file=config.output_predictions_file,
+                predictions=prediction_df['Score'].values,
+                truth=dataset.test.y,
+            )
+
+        return dict(
+                models_count=models_count,
+                training_duration=training_duration,
+                predict_duration=prediction.duration,
+                model_path=model_path_out,
+            )
     finally:
-        if 'logs' in artifacts:
-            logs_zip = os.path.join(log_dir, "logs.zip")
-            zip_path(log_dir, logs_zip)
-            clean_dir(log_dir, filtr=lambda p: p != logs_zip)
-        if 'models' in artifacts:
-            models_zip = os.path.join(output_dir, "models.zip")
-            zip_path(output_dir, models_zip)
-            clean_dir(output_dir, filtr=lambda p: p != models_zip)
+        if config.task_type == 'predict':
+            # only delete things if this isn't training so that we can upload
+            if 'logs' in artifacts:
+                logs_zip = os.path.join(log_dir, "logs.zip")
+                zip_path(log_dir, logs_zip)
+                clean_dir(log_dir, filtr=lambda p: p != logs_zip)
+            if 'models' in artifacts:
+                models_zip = os.path.join(output_dir, "models.zip")
+                zip_path(output_dir, models_zip)
+                clean_dir(output_dir, filtr=lambda p: p != models_zip)
 
-        shutil.rmtree(tmpdir, ignore_errors=True)
+            shutil.rmtree(tmpdir, ignore_errors=True)

@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import tempfile as tmp
+import pickle
 
 if sys.platform == 'darwin':
     os.environ['OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'
@@ -68,15 +69,33 @@ def run(dataset, config):
     else:
         kwargs['max_memory_mb'] = config.max_mem_size_mb
         kwargs['output_directory'] = output_subdir('logs', config)
-    
-    gama_automl = estimator(**kwargs)
 
     X_train, y_train = dataset.train.X, dataset.train.y
     # data = file_to_pandas(dataset.train.path, encoding='utf-8')
     # X_train, y_train = data.loc[:, data.columns != dataset.target], data.loc[:, dataset.target]
 
-    with Timer() as training_timer:
-        gama_automl.fit(X_train, y_train)
+    if config.task_type == 'train':
+        gama_automl = estimator(**kwargs)
+        with Timer() as training_timer:
+            gama_automl.fit(X_train, y_train)
+        training_duration = training_timer.duration
+
+        # save model
+        model_path = tmp.mkdtemp()
+        try:
+            log.info('Saving model to %s', model_path)
+            with open(os.path.join(model_path, 'model.pkl'), 'wb') as f:
+                pickle.dump(gama_automl, f)
+        except:
+            log.exception('Error saving model to %s', model_path)
+            model_path = None
+
+    elif config.task_type == 'predict':
+        log.info('Loading model from %s', config.model_path)
+        with open(os.path.join(config.model_path, 'model.pkl'), 'rb') as f:
+            gama_automl = pickle.load(f)
+        training_duration = 0.0
+        model_path = None
 
     log.info('Predicting on the test set.')
     X_test, y_test = dataset.test.X, dataset.test.y
@@ -97,8 +116,9 @@ def run(dataset, config):
         truth=y_test,
         target_is_encoded=False,
         models_count=len(gama_automl._final_pop),
-        training_duration=training_timer.duration,
-        predict_duration=predict_timer.duration
+        training_duration=training_duration,
+        predict_duration=predict_timer.duration,
+        model_path=model_path,
     )
 
 

@@ -3,6 +3,8 @@ import os
 import pprint
 import sys
 import tempfile as tmp
+import pickle
+import joblib
 
 if sys.platform == 'darwin':
     os.environ['OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'
@@ -50,15 +52,36 @@ def run(dataset, config):
              config.max_runtime_seconds, n_jobs, scoring_metric)
     runtime_min = (config.max_runtime_seconds/60)
 
-    estimator = TPOTClassifier if is_classification else TPOTRegressor
-    tpot = estimator(n_jobs=n_jobs,
-                     max_time_mins=runtime_min,
-                     scoring=scoring_metric,
-                     random_state=config.seed,
-                     **training_params)
+    if config.task_type == 'train':
+        estimator = TPOTClassifier if is_classification else TPOTRegressor
+        tpot = estimator(n_jobs=n_jobs,
+                         max_time_mins=runtime_min,
+                         scoring=scoring_metric,
+                         random_state=config.seed,
+                         **training_params)
 
-    with Timer() as training:
-        tpot.fit(X_train, y_train)
+        with Timer() as training:
+            tpot.fit(X_train, y_train)
+        training_duration = training.duration
+
+        # save model
+        model_path = tmp.mkdtemp()
+        try:
+            log.info('Saving model to %s', model_path)
+            # with open(os.path.join(model_path, 'model.pkl'), 'wb') as f:
+            #     pickle.dump(rf, f)
+            joblib.dump(tpot.fitted_pipeline_, os.path.join(model_path, 'model.joblib'))
+        except:
+            log.exception('Error saving model to %s', model_path)
+            model_path = None
+
+    elif config.task_type == 'predict':
+        log.info('Loading model from %s', config.model_path)
+        # with open(os.path.join(config.model_path, 'model.pkl'), 'rb') as f:
+        #     rf = pickle.load(f)
+        tpot = joblib.load(os.path.join(model_path, 'model.joblib'))
+        training_duration = 0.0
+        model_path = None
 
     log.info('Predicting on the test set.')
     X_test = dataset.test.X
@@ -79,10 +102,12 @@ def run(dataset, config):
                   probabilities=probabilities,
                   target_is_encoded=is_classification,
                   models_count=len(tpot.evaluated_individuals_),
-                  training_duration=training.duration,
-                  predict_duration=predict.duration)
+                  training_duration=training_duration,
+                  predict_duration=predict.duration,
+                  model_path=model_path)
 
 
+# TODO: export the python code for the best pipeline via tpot.export
 def save_artifacts(estimator, config):
     try:
         log.debug("All individuals :\n%s", list(estimator.evaluated_individuals_.items()))

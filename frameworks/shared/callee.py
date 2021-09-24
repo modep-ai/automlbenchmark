@@ -91,16 +91,13 @@ def call_run(run_fn):
                     path = os.path.join(config.result_dir, '.'.join([name, 'data']))
                     res[name] = serialize_data(arr, path)
 
-
-        # print('--> run_fn, no timeout')
+        # log.warning('--> call_run is using no timeout')
         # result = run_fn(ds, config)
         # res = dict(result)
         # for name in ['predictions', 'truth', 'probabilities']:
         #     arr = result[name]
-        #     print('--> arr', arr)
         #     if arr is not None:
         #         path = os.path.join(config.result_dir, '.'.join([name, 'data']))
-        #         print('--> serialize_data', path)
         #         res[name] = serialize_data(arr, path)
                 
     except BaseException as e:
