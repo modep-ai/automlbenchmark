@@ -59,7 +59,7 @@ def run(dataset, config):
         log.info('Loading model from %s', config.model_path)
         with open(os.path.join(config.model_path, 'model.pkl'), 'rb') as f:
             rf = pickle.load(f)
-        # rf = joblib.load(os.path.join(model_path, 'model.joblib'))
+        # rf = joblib.load(os.path.join(config.model_path, 'model.joblib'))
         training_duration = 0.0
         model_path = None
 

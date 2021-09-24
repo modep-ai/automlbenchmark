@@ -3,7 +3,6 @@ import os
 import pprint
 import sys
 import tempfile as tmp
-import pickle
 import joblib
 
 if sys.platform == 'darwin':
@@ -63,13 +62,12 @@ def run(dataset, config):
         with Timer() as training:
             tpot.fit(X_train, y_train)
         training_duration = training.duration
+        models_count = len(tpot.evaluated_individuals_)
 
         # save model
         model_path = tmp.mkdtemp()
         try:
             log.info('Saving model to %s', model_path)
-            # with open(os.path.join(model_path, 'model.pkl'), 'wb') as f:
-            #     pickle.dump(rf, f)
             joblib.dump(tpot.fitted_pipeline_, os.path.join(model_path, 'model.joblib'))
         except:
             log.exception('Error saving model to %s', model_path)
@@ -77,11 +75,10 @@ def run(dataset, config):
 
     elif config.task_type == 'predict':
         log.info('Loading model from %s', config.model_path)
-        # with open(os.path.join(config.model_path, 'model.pkl'), 'rb') as f:
-        #     rf = pickle.load(f)
-        tpot = joblib.load(os.path.join(model_path, 'model.joblib'))
+        tpot = joblib.load(os.path.join(config.model_path, 'model.joblib'))
         training_duration = 0.0
         model_path = None
+        models_count = 1
 
     log.info('Predicting on the test set.')
     X_test = dataset.test.X
@@ -94,14 +91,16 @@ def run(dataset, config):
         # TPOT throws a RuntimeError if the optimized pipeline does not support `predict_proba`.
         probabilities = "predictions"  # encoding is handled by caller in `__init__.py`
 
-    save_artifacts(tpot, config)
+    if config.task_type == 'train':
+        # during predict, tpot is just a pipeline object
+        save_artifacts(tpot, config)
 
     return result(output_file=config.output_predictions_file,
                   predictions=predictions,
                   truth=y_test,
                   probabilities=probabilities,
                   target_is_encoded=is_classification,
-                  models_count=len(tpot.evaluated_individuals_),
+                  models_count=models_count,
                   training_duration=training_duration,
                   predict_duration=predict.duration,
                   model_path=model_path)
