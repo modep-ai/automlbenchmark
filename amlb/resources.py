@@ -46,7 +46,7 @@ class Resources:
         )
         self.config = Resources._normalize(config, replace=common_dirs)
         self.config.common_dirs = common_dirs
-        log.debug("Using config:\n%s", self.config)
+        # log.debug("Using config:\n%s", self.config)
 
         # allowing to load custom modules from user directory
         sys.path.append(common_dirs['user'])
