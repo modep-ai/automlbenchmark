@@ -73,7 +73,7 @@ scikit-learn==0.24.2
     # via
     #   -r requirements.in
     #   openml
-scipy==1.6.3
+scipy==1.7.1
     # via
     #   openml
     #   scikit-learn
