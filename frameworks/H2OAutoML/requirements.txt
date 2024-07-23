@@ -1,6 +1,6 @@
 requests>=2.10
 tabulate
-future
+future==0.18.2
 colorama>=0.3.8
 packaging
 pandas
