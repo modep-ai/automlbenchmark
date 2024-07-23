@@ -2,5 +2,5 @@ numpy
 pandas
 matplotlib
 seaborn
-openml
+openml==0.11.0
 tabulate
